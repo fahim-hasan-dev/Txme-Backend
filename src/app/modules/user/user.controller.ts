@@ -89,7 +89,8 @@ const deleteUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateFcmToken = catchAsync(async (req: Request, res: Response) => {
-    const { token } = req.body;
+    const token = req.body.token || req.body.fcmToken;
+    console.log(`[UserController] User "${req.user?.id}" updating FCM token: ${token ? token.substring(0, 15) + '...' : 'EMPTY/UNDEFINED'}`);
     const result = await UserService.updateFcmTokenToDB(req.user, token);
 
     sendResponse(res, {

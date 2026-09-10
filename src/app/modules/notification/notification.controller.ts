@@ -68,6 +68,16 @@ const sendTestPushNotification = catchAsync(async (req: Request, res: Response) 
         }
     );
 
+    if (!result) {
+        sendResponse(res, {
+            statusCode: StatusCodes.BAD_REQUEST,
+            success: false,
+            message: 'Push notification failed to send. Please check the backend console log for why it failed.',
+            data: null
+        });
+        return;
+    }
+
     sendResponse(res, {
         statusCode: StatusCodes.OK,
         success: true,

@@ -14,8 +14,6 @@ const insertNotification = async (payload: Partial<INotification>): Promise<INot
 
     // --- PUSH NOTIFICATION (BullMQ Queue) ---
     if (result.title && result.message) {
-        console.log(`[NotificationService] Enqueuing push job for: ${result.title}. Type: ${result.type}`);
-
         if (result.type === 'ADMIN') {
             const admins = await User.find({
                 role: { $in: ['ADMIN', 'SUPER_ADMIN'] }
@@ -24,6 +22,7 @@ const insertNotification = async (payload: Partial<INotification>): Promise<INot
             const adminTokens = admins.map(a => a.fcmToken).filter(Boolean);
 
             if (adminTokens.length > 0) {
+                console.log(`[NotificationService] Enqueuing admin push job for: "${result.title}" to ${adminTokens.length} admin(s)`);
                 for (const token of adminTokens) {
                     await addNotificationJob({
                         token: token!,
@@ -32,13 +31,20 @@ const insertNotification = async (payload: Partial<INotification>): Promise<INot
                         data: { referenceId: result.referenceId, screen: result.screen }
                     });
                 }
+            } else {
+                console.warn(`⚠️ [NotificationService] Push skipped: No admin users found with an fcmToken in DB.`);
             }
         } else if (result.receiver) {
             const receiverId = result.receiver.toString();
 
             const receiverUser = await User.findById(receiverId).select('fcmToken fullName').lean();
 
-            if (receiverUser && receiverUser.fcmToken) {
+            if (!receiverUser) {
+                console.warn(`⚠️ [NotificationService] Push skipped: Receiver user ${receiverId} not found in DB.`);
+            } else if (!receiverUser.fcmToken) {
+                console.warn(`⚠️ [NotificationService] Push skipped: Receiver user "${receiverUser.fullName || receiverId}" does not have an fcmToken in DB.`);
+            } else {
+                console.log(`[NotificationService] Enqueuing push job for user "${receiverUser.fullName || receiverId}": "${result.title}"`);
                 await addNotificationJob({
                     token: receiverUser.fcmToken,
                     title: result.title,
@@ -46,7 +52,11 @@ const insertNotification = async (payload: Partial<INotification>): Promise<INot
                     data: { referenceId: result.referenceId, screen: result.screen }
                 });
             }
+        } else {
+            console.warn(`⚠️ [NotificationService] Push skipped: Notification has no receiver specified.`);
         }
+    } else {
+        console.warn(`⚠️ [NotificationService] Push skipped: Missing title or message in notification.`);
     }
 
     // --- SOCKET NOTIFICATION ---

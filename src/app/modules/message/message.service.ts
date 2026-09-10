@@ -131,19 +131,22 @@ const sendMessageToDB = async (payload: any): Promise<IMessage> => {
       );
 
       if (recipientId) {
-        const recipient = await User.findById(recipientId).select('fcmToken').lean();
+        const recipient = await User.findById(recipientId).select('fcmToken fullName').lean();
         if (recipient?.fcmToken) {
+          console.log(`[MessageService] Enqueuing chat push notification to recipient "${recipient.fullName || recipientId}"`);
           await addNotificationJob({
             token: recipient.fcmToken,
             title,
             message: body,
             data: { screen: "CHAT", chatId: payload.chatId?.toString() }
           });
+        } else {
+          console.warn(`⚠️ [MessageService] Push skipped: Recipient "${recipient?.fullName || recipientId}" has NO fcmToken in DB.`);
         }
       }
     }
   } catch (error) {
-    console.error("Failed to send push notification:", error);
+    console.error("❌ [MessageService] Error enqueuing chat push notification:", error);
     // Don't block the response if notification fails
   }
 
