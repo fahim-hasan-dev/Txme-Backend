@@ -58,9 +58,6 @@ const getMyProfile = catchAsync(async (req: Request, res: Response) => {
 
 
 
-// get popular providers
-
-
 // update user status
 const updateUserStatus = catchAsync(async (req: Request, res: Response) => {
     const { userId } = req.params;
@@ -106,7 +103,6 @@ export const UserController = {
     updateProfile,
     getSingleUser,
     getMyProfile,
-
     updateUserStatus,
     deleteUser,
     updateFcmToken

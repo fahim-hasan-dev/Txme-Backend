@@ -82,47 +82,47 @@ const sendMessageToDB = async (payload: any): Promise<IMessage> => {
     const chatStatus = await Chat.findById(payload.chatId);
     if (!chatStatus) return response;
 
-    // Fetch sender details for better title
-    const sender = await User.findById(payload.sender).select('fullName role');
-    const title = sender?.fullName || "New Message";
+    // Fetch sender details for title and role
+    let title = "New Message";
+    const isSenderAdmin = !!isExistAdmin;
+
+    if (isSenderAdmin) {
+      title = isExistAdmin.name ? `Support (${isExistAdmin.name})` : "Admin Support";
+    } else {
+      const senderUser = await User.findById(payload.sender).select('fullName role');
+      title = senderUser?.fullName || "New Message";
+    }
+
     const body = payload.text ?
       (payload.text.length > 50 ? payload.text.substring(0, 50) + "..." : payload.text) :
       "Sent an attachment";
 
     if (chatStatus.isAdminSupport) {
-      // For Admin Support, notify all admins except the sender (if sender is an admin)
-      // or all admins if sender is a user
-      const admins = await User.find({
-        role: { $in: [ADMIN_ROLES.ADMIN, ADMIN_ROLES.SUPER_ADMIN] },
-        _id: { $ne: payload.sender }
-      }).select('fcmToken');
-
-      const adminTokens = admins.map(a => a.fcmToken).filter(Boolean);
-
-      // Send to each admin (Firebase Admin SDK .send() takes one token, or use .sendEachForMulticast)
-      if (adminTokens.length > 0) {
-        for (const token of adminTokens) {
-          await addNotificationJob({
-            token: token!,
-            title: `Support: ${title}`,
-            message: body,
-            data: { screen: "CHAT", chatId: payload.chatId?.toString() }
-          });
-        }
-      }
-
-      // If the sender is an admin, notify the user as well
-      const isSenderAdmin = [ADMIN_ROLES.ADMIN, ADMIN_ROLES.SUPER_ADMIN].includes(sender?.role as any);
       if (isSenderAdmin) {
-        const userParticipant = await User.findById(chatStatus.participants[0]).select('fcmToken').lean();
-        if (userParticipant?.fcmToken) {
-          await addNotificationJob({
-            token: userParticipant.fcmToken,
-            title,
-            message: body,
-            data: { screen: "CHAT", chatId: payload.chatId?.toString() }
-          });
+        // Admin replied to user -> Send push notification to the user
+        const targetUserId = chatStatus.participants.find(
+          (p: any) => p.toString() !== payload.sender.toString()
+        ) || chatStatus.participants[0];
+
+        if (targetUserId) {
+          const userParticipant = await User.findById(targetUserId).select('fcmToken fullName').lean();
+          if (userParticipant?.fcmToken) {
+            console.log(`[MessageService] Enqueuing support reply push notification to user "${userParticipant.fullName || targetUserId}"`);
+            await addNotificationJob({
+              token: userParticipant.fcmToken,
+              title,
+              message: body,
+              data: { screen: "CHAT", chatId: payload.chatId?.toString() }
+            });
+          } else {
+            console.warn(`⚠️ [MessageService] Push skipped: User "${userParticipant?.fullName || targetUserId}" has NO fcmToken in DB.`);
+          }
+        } else {
+          console.warn(`⚠️ [MessageService] Push skipped: No user participant found in support chat ${payload.chatId}`);
         }
+      } else {
+        // User sent message to Admin Support
+        console.log(`[MessageService] User sent message to Admin Support. Chat: ${payload.chatId}`);
       }
     } else {
       // Normal Chat recipient

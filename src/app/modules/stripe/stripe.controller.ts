@@ -48,9 +48,13 @@ const createAppointmentPaymentIntent = catchAsync(async (req, res) => {
 const createAccountLink = catchAsync(async (req, res) => {
     let { return_url, refresh_url } = req.body;
 
-    if (!return_url || !refresh_url) {
-        const baseUrl = `${req.protocol}://${req.get('host')}/api/v1/stripe`;
+    const baseUrl = "https://api.txme-exchange.com/api/v1/stripe";
+
+    if (!return_url || return_url.startsWith('http://')) {
         return_url = `${baseUrl}/return`;
+    }
+
+    if (!refresh_url || refresh_url.startsWith('http://')) {
         refresh_url = `${baseUrl}/refresh`;
     }
 
