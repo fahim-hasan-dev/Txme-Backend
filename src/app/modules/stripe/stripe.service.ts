@@ -104,33 +104,95 @@ const handleSuccessfulTopUpPayment = async (
         throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid payment metadata: userId missing');
     }
 
-    let creditAmount = parseFloat(metadata.amount || '0');
-    if (!creditAmount || creditAmount <= 0) {
-        creditAmount = (paymentIntent.amount || 0) / 100;
+    let netAmount: number | null = null;
+    let chargeId: string | null = null;
+
+    if (paymentIntent.latest_charge) {
+        chargeId = typeof paymentIntent.latest_charge === 'string'
+            ? paymentIntent.latest_charge
+            : paymentIntent.latest_charge.id;
     }
 
-    try {
-        if (paymentIntent.latest_charge) {
-            const chargeId = typeof paymentIntent.latest_charge === 'string'
-                ? paymentIntent.latest_charge
-                : paymentIntent.latest_charge.id;
-
-            const charge = await stripe.charges.retrieve(chargeId, {
-                expand: ['balance_transaction']
+    // If latest_charge is not yet on the object or balance_transaction is missing, fetch fresh PaymentIntent
+    if (!chargeId) {
+        try {
+            const freshPi = await stripe.paymentIntents.retrieve(paymentIntent.id, {
+                expand: ['latest_charge.balance_transaction']
             });
-
-            if (charge.balance_transaction && typeof charge.balance_transaction !== 'string') {
-                const balanceTx = charge.balance_transaction as Stripe.BalanceTransaction;
-                if (typeof balanceTx.net === 'number') {
-                    creditAmount = balanceTx.net / 100;
+            if (freshPi.latest_charge) {
+                if (typeof freshPi.latest_charge === 'string') {
+                    chargeId = freshPi.latest_charge;
+                } else {
+                    chargeId = freshPi.latest_charge.id;
+                    const bt = freshPi.latest_charge.balance_transaction;
+                    if (bt && typeof bt === 'object' && typeof bt.net === 'number') {
+                        netAmount = bt.net / 100;
+                    }
                 }
             }
+        } catch (e: any) {
+            console.error(`[StripeService] Failed to retrieve fresh PaymentIntent:`, e?.message);
         }
-    } catch (error: any) {
-        console.error(`[StripeService] Failed to retrieve balance_transaction for ${paymentIntent.id}:`, error?.message);
     }
 
-    await WalletService.topUp(userId, creditAmount, paymentIntent.id);
+    // Retrieve charge and balance_transaction with retry to ensure Stripe fee is deducted
+    if (!netAmount && chargeId) {
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                const charge = await stripe.charges.retrieve(chargeId, {
+                    expand: ['balance_transaction']
+                });
+
+                if (charge.balance_transaction) {
+                    if (typeof charge.balance_transaction === 'object' && typeof charge.balance_transaction.net === 'number') {
+                        netAmount = charge.balance_transaction.net / 100;
+                        console.log(`[StripeService] Net amount found via expanded charge: €${netAmount} (Fee: €${(charge.balance_transaction.fee || 0) / 100})`);
+                        break;
+                    } else if (typeof charge.balance_transaction === 'string') {
+                        const bt = await stripe.balanceTransactions.retrieve(charge.balance_transaction);
+                        if (typeof bt.net === 'number') {
+                            netAmount = bt.net / 100;
+                            console.log(`[StripeService] Net amount found via balanceTransaction retrieve: €${netAmount} (Fee: €${(bt.fee || 0) / 100})`);
+                            break;
+                        }
+                    }
+                }
+
+                // Fallback: query balance transactions list for this charge
+                const btList = await stripe.balanceTransactions.list({ source: chargeId, limit: 1 });
+                if (btList.data.length > 0 && typeof btList.data[0].net === 'number') {
+                    netAmount = btList.data[0].net / 100;
+                    console.log(`[StripeService] Net amount found via balanceTransactions.list: €${netAmount}`);
+                    break;
+                }
+            } catch (error: any) {
+                console.error(`[StripeService] Attempt ${attempt} failed to retrieve balance_transaction for ${paymentIntent.id}:`, error?.message);
+            }
+
+            if (attempt < 3) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+        }
+    }
+
+    // If net amount could not be resolved yet, throw error so Stripe webhook retries in 1 minute
+    if (netAmount === null || netAmount <= 0) {
+        console.error(`❌ [StripeService] CRITICAL: Unable to resolve net amount for PaymentIntent ${paymentIntent.id}. Triggering webhook retry.`);
+        throw new ApiError(
+            StatusCodes.SERVICE_UNAVAILABLE,
+            `Stripe balance transaction pending for ${paymentIntent.id}. Webhook will retry.`
+        );
+    }
+
+    const grossAmount = Math.round(((parseFloat(metadata.amount || '0') || (paymentIntent.amount / 100)) + Number.EPSILON) * 100) / 100;
+    const roundedNetAmount = Math.round((netAmount + Number.EPSILON) * 100) / 100;
+    const feeAmount = Math.round((grossAmount - roundedNetAmount + Number.EPSILON) * 100) / 100;
+
+    console.log(`[StripeService] Crediting user ${userId} wallet: Amount €${grossAmount}, Fee €${feeAmount}, NET €${roundedNetAmount} (Reference: ${paymentIntent.id})`);
+    await WalletService.topUp(userId, grossAmount, paymentIntent.id, {
+        fee: feeAmount,
+        netAmount: roundedNetAmount
+    });
 };
 
 const verifyTopUpPayment = async (

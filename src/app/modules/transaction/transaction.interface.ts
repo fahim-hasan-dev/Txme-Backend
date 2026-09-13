@@ -13,4 +13,6 @@ export interface IWalletTransaction {
   appointment?: Types.ObjectId;
   platform?: "ios" | "android";
   productId?: string;
+  fee?: number;
+  netAmount?: number;
 }

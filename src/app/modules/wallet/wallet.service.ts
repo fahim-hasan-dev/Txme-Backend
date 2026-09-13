@@ -22,27 +22,43 @@ const getOrCreateWallet = async (userId: string, session?: mongoose.ClientSessio
   return wallet;
 };
 
+export const roundFinancial = (num: number): number => {
+  return Math.round((Number(num) + Number.EPSILON) * 100) / 100;
+};
+
 const getmyWallet = async (userId: string) => {
   const cacheKey = `cache:wallet:${userId}`;
   const cachedWallet = await getCache<any>(cacheKey);
   if (cachedWallet) {
+    if (typeof cachedWallet.balance === 'number') {
+      cachedWallet.balance = roundFinancial(cachedWallet.balance);
+    }
     return cachedWallet;
   }
 
   const wallet = await getOrCreateWallet(userId);
   const result = wallet.toObject ? wallet.toObject() : wallet;
+  if (result && typeof result.balance === 'number') {
+    result.balance = roundFinancial(result.balance);
+  }
   await setCache(cacheKey, result, 300); 
   return result;
 };
 
 // TOP UP
-const topUp = async (userId: string, amount: number, reference: string = "topup") => {
-  if (amount <= 0) {
+const topUp = async (
+  userId: string, 
+  amount: number, 
+  reference: string = "topup",
+  meta?: { fee?: number; netAmount?: number }
+) => {
+  const roundedAmount = roundFinancial(amount);
+  if (roundedAmount <= 0) {
     throw new ApiError(StatusCodes.BAD_REQUEST, "Amount must be greater than zero");
   }
 
   await checkWalletSetting('topUp');
-  console.log(`[WalletService] topUp called. User: ${userId}, Amount: ${amount}`);
+  console.log(`[WalletService] topUp called. User: ${userId}, Main Amount: ${roundedAmount}`);
 
   const user = await User.findById(userId);
   if (!user || user.status !== 'active') {
@@ -68,11 +84,16 @@ const topUp = async (userId: string, amount: number, reference: string = "topup"
       throw new ApiError(StatusCodes.FORBIDDEN, "Your wallet is blocked. Please contact support.");
     }
 
+    const fee = meta?.fee !== undefined ? roundFinancial(meta.fee) : 0;
+    const net = meta?.netAmount !== undefined ? roundFinancial(meta.netAmount) : roundedAmount;
+
     const tx = await WalletTransaction.create(
       [
         {
           wallet: wallet._id,
-          amount,
+          amount: roundedAmount, // Main payment amount (e.g. 100)
+          fee: fee,              // Fee (e.g. 4.18)
+          netAmount: net,        // Net credited amount (e.g. 95.82)
           type: "topup",
           direction: "credit",
           status: "success",
@@ -83,7 +104,7 @@ const topUp = async (userId: string, amount: number, reference: string = "topup"
       { session }
     );
 
-    wallet.balance += amount;
+    wallet.balance = roundFinancial(wallet.balance + net);
     await wallet.save({ session });
 
     await session.commitTransaction();
@@ -92,7 +113,7 @@ const topUp = async (userId: string, amount: number, reference: string = "topup"
     try {
       await NotificationService.insertNotification({
         title: "Wallet Top Up",
-        message: `Successfully added ${amount} to your wallet.`,
+        message: `Successfully added €${Number(net).toFixed(2)} to your wallet.`,
         receiver: new Types.ObjectId(userId),
         screen: "WALLET",
         type: "USER",
@@ -179,13 +200,14 @@ const sendMoney = async (
       throw new ApiError(StatusCodes.BAD_REQUEST, "Receiver's wallet is blocked.");
     }
 
-    if (senderWallet.balance < amount) {
+    const roundedAmount = roundFinancial(amount);
+    if (senderWallet.balance < roundedAmount) {
       throw new ApiError(StatusCodes.BAD_REQUEST, "Insufficient wallet balance");
     }
 
     // Perform transfer
-    senderWallet.balance -= amount;
-    receiverWallet.balance += amount;
+    senderWallet.balance = roundFinancial(senderWallet.balance - roundedAmount);
+    receiverWallet.balance = roundFinancial(receiverWallet.balance + roundedAmount);
 
     await senderWallet.save({ session });
     await receiverWallet.save({ session });
@@ -226,7 +248,7 @@ const sendMoney = async (
     try {
       await NotificationService.insertNotification({
         title: "Money Sent",
-        message: `You have successfully sent ${amount} to ${receiver.fullName || "User"}.`,
+        message: `You have successfully sent €${Number(roundedAmount).toFixed(2)} to ${receiver.fullName || "User"}.`,
         receiver: new Types.ObjectId(senderId),
         screen: "WALLET",
         type: "USER",
@@ -235,7 +257,7 @@ const sendMoney = async (
 
       await NotificationService.insertNotification({
         title: "Money Received",
-        message: `${sender.fullName || "Someone"} has sent you ${amount} in your wallet.`,
+        message: `${sender.fullName || "Someone"} has sent you €${Number(roundedAmount).toFixed(2)} in your wallet.`,
         receiver: receiverId,
         screen: "WALLET",
         type: "USER",
@@ -302,8 +324,9 @@ const withdraw = async (userId: string, amount: number) => {
       }
     ], { session });
 
+    const roundedAmount = roundFinancial(amount);
     // 3. Deduct from wallet balance
-    wallet.balance -= amount;
+    wallet.balance = roundFinancial(wallet.balance - roundedAmount);
     await wallet.save({ session });
 
     // 4. Trigger Stripe Payout (Provider Account -> Card/Bank)
@@ -320,7 +343,7 @@ const withdraw = async (userId: string, amount: number) => {
     try {
       await NotificationService.insertNotification({
         title: "Withdrawal Successful",
-        message: `Your withdrawal of ${amount} has been successfully processed via Stripe.`,
+        message: `Your withdrawal of €${Number(roundedAmount).toFixed(2)} has been successfully processed via Stripe.`,
         receiver: new Types.ObjectId(userId),
         screen: "WALLET",
         type: "USER",

@@ -8,7 +8,17 @@ const transactionSchema = new Schema<IWalletTransaction>(
       ref: "Wallet",
       required: false,
     },
-    amount: { type: Number, required: true },
+    amount: { 
+      type: Number, 
+      required: true,
+    },
+    fee: { 
+      type: Number, 
+      default: 0,
+    },
+    netAmount: { 
+      type: Number,
+    },
     type: {
       type: String,
       enum: ["topup", "withdraw", "send", "promotion", "payment"],

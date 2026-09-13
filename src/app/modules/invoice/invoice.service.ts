@@ -38,8 +38,24 @@ const getInvoiceForTransaction = async (transactionId: string, userId: string): 
     }
 
     let documentTitle = 'Wallet Transaction Record';
+    let invoiceAmount = transaction.amount;
+    let invoiceFee = transaction.fee;
+    let invoiceNet = transaction.netAmount;
+
     if (transaction.type === 'topup') {
         documentTitle = 'Record of Wallet Top Up';
+        const fee = transaction.fee || 0;
+        const net = transaction.netAmount || (transaction.amount - fee);
+
+        invoiceFee = fee;
+        invoiceNet = net;
+        invoiceAmount = transaction.amount;
+
+        details['Payment Amount'] = `€${Number(transaction.amount).toFixed(2)} EUR`;
+        if (fee > 0) {
+            details['Fees (Stripe)'] = `- €${Number(fee).toFixed(2)} EUR`;
+        }
+        details['Net Amount Credited'] = `€${Number(net).toFixed(2)} EUR`;
     } else if (transaction.type === 'withdraw') {
         documentTitle = 'Record of Wallet Withdraw';
     } else if (transaction.type === 'send') {
@@ -54,7 +70,9 @@ const getInvoiceForTransaction = async (transactionId: string, userId: string): 
         title: documentTitle,
         invoiceNumber: transaction._id.toString(),
         date: transaction.createdAt,
-        amount: transaction.amount,
+        amount: invoiceAmount,
+        fee: invoiceFee,
+        netAmount: invoiceNet,
         billedFrom: {
             name: transaction.from?.fullName || 'Txme Platform System',
             email: transaction.from?.email || 'system@txme.app',

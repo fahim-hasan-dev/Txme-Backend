@@ -27,6 +27,8 @@ export interface IInvoicePDFPayload {
     invoiceNumber: string;
     date: Date | string;
     amount: number;
+    fee?: number;
+    netAmount?: number;
     billedFrom?: {
         name?: string;
         email?: string;
@@ -165,17 +167,31 @@ export const buildProfessionalInvoicePDF = async (payload: IInvoicePDFPayload, r
 
     doc.roundedRect(totalBoxX, tableY, totalBoxWidth, totalBoxHeight, 4).fillAndStroke(cardBgColor, blackTextColor);
 
-    doc.fillColor(darkGrayTextColor).fontSize(8.5).text('SUBTOTAL:', totalBoxX + 12, tableY + 8);
-    doc.fillColor(blackTextColor).fontSize(8.5).text(`€${Number(payload.amount).toFixed(2)}`, totalBoxX + 90, tableY + 8, { width: 98, align: 'right' });
+    if (payload.fee !== undefined && payload.fee > 0 && payload.netAmount !== undefined) {
+        doc.fillColor(darkGrayTextColor).fontSize(8.5).text('PAYMENT AMOUNT:', totalBoxX + 12, tableY + 8);
+        doc.fillColor(blackTextColor).fontSize(8.5).text(`€${Number(payload.amount).toFixed(2)}`, totalBoxX + 90, tableY + 8, { width: 98, align: 'right' });
 
-    doc.fillColor(darkGrayTextColor).fontSize(8.5).text('TAX / FEES:', totalBoxX + 12, tableY + 19);
-    doc.fillColor(blackTextColor).fontSize(8.5).text('€0.00', totalBoxX + 90, tableY + 19, { width: 98, align: 'right' });
+        doc.fillColor(darkGrayTextColor).fontSize(8.5).text('FEES (STRIPE):', totalBoxX + 12, tableY + 19);
+        doc.fillColor('#DC2626').fontSize(8.5).text(`- €${Number(payload.fee).toFixed(2)}`, totalBoxX + 90, tableY + 19, { width: 98, align: 'right' });
 
-    // Inner Line inside Total Box
-    doc.moveTo(totalBoxX + 12, tableY + 30).lineTo(totalBoxX + totalBoxWidth - 12, tableY + 30).strokeColor(blackTextColor).lineWidth(0.5).stroke();
+        // Inner Line inside Total Box
+        doc.moveTo(totalBoxX + 12, tableY + 30).lineTo(totalBoxX + totalBoxWidth - 12, tableY + 30).strokeColor(blackTextColor).lineWidth(0.5).stroke();
 
-    doc.fillColor(blackTextColor).fontSize(9.5).text('TOTAL AMOUNT:', totalBoxX + 12, tableY + 33);
-    doc.fillColor(blackTextColor).fontSize(10.5).text(`€${Number(payload.amount).toFixed(2)}`, totalBoxX + 90, tableY + 32, { width: 98, align: 'right' });
+        doc.fillColor(blackTextColor).fontSize(9.5).text('NET CREDITED:', totalBoxX + 12, tableY + 33);
+        doc.fillColor(blackTextColor).fontSize(10.5).text(`€${Number(payload.netAmount).toFixed(2)}`, totalBoxX + 90, tableY + 32, { width: 98, align: 'right' });
+    } else {
+        doc.fillColor(darkGrayTextColor).fontSize(8.5).text('SUBTOTAL:', totalBoxX + 12, tableY + 8);
+        doc.fillColor(blackTextColor).fontSize(8.5).text(`€${Number(payload.amount).toFixed(2)}`, totalBoxX + 90, tableY + 8, { width: 98, align: 'right' });
+
+        doc.fillColor(darkGrayTextColor).fontSize(8.5).text('TAX / FEES:', totalBoxX + 12, tableY + 19);
+        doc.fillColor(blackTextColor).fontSize(8.5).text('€0.00', totalBoxX + 90, tableY + 19, { width: 98, align: 'right' });
+
+        // Inner Line inside Total Box
+        doc.moveTo(totalBoxX + 12, tableY + 30).lineTo(totalBoxX + totalBoxWidth - 12, tableY + 30).strokeColor(blackTextColor).lineWidth(0.5).stroke();
+
+        doc.fillColor(blackTextColor).fontSize(9.5).text('TOTAL AMOUNT:', totalBoxX + 12, tableY + 33);
+        doc.fillColor(blackTextColor).fontSize(10.5).text(`€${Number(payload.amount).toFixed(2)}`, totalBoxX + 90, tableY + 32, { width: 98, align: 'right' });
+    }
 
     // 6. Professional Short Footer (Strict Single Page Fit)
     const footerY = 775;
