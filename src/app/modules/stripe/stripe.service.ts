@@ -27,31 +27,48 @@ const createTopUpPaymentIntent = async (
     userId: string,
     amount: number,
     userEmail: string
-): Promise<{ clientSecret: string; paymentIntentId: string; checkoutUrl: string; returnUrl: string }> => {
+): Promise<{
+    clientSecret: string;
+    paymentIntentId: string;
+    checkoutUrl: string;
+    returnUrl: string;
+}> => {
     await checkWalletSetting('topUp');
+
     try {
         const amountInCents = Math.round(amount * 100);
 
+        // PaymentIntent for Payment Element
         const paymentIntent = await stripe.paymentIntents.create({
             amount: amountInCents,
             currency: 'eur',
-            automatic_payment_methods: { enabled: true },
+
+            automatic_payment_methods: {
+                enabled: true,
+            },
+
             metadata: {
                 userId,
                 type: 'wallet_topup',
                 amount: amount.toString(),
             },
+
             receipt_email: userEmail,
             description: `Wallet Top Up - ${amount}`,
         });
 
-        const successUrl = config.stripe.paymentSuccess || "https://txme.app/payment-success";
+        const successUrl =
+            config.stripe.paymentSuccess ||
+            'https://txme.app/payment-success';
+
         const customerId = await getOrCreateStripeCustomer(userEmail);
 
+        // Checkout Session for Hosted Checkout
         const checkoutSession = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
             mode: 'payment',
+
             customer: customerId,
+
             line_items: [
                 {
                     price_data: {
@@ -64,11 +81,13 @@ const createTopUpPaymentIntent = async (
                     quantity: 1,
                 },
             ],
+
             metadata: {
                 userId,
                 type: 'wallet_topup',
                 amount: amount.toString(),
             },
+
             payment_intent_data: {
                 metadata: {
                     userId,
@@ -76,15 +95,17 @@ const createTopUpPaymentIntent = async (
                     amount: amount.toString(),
                 },
             },
+
             success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${successUrl}?canceled=true`,
         });
 
         return {
+            // Keep existing response exactly the same
             clientSecret: paymentIntent.client_secret as string,
             paymentIntentId: paymentIntent.id,
             checkoutUrl: checkoutSession.url as string,
-            returnUrl: "txme://app/payment-status"
+            returnUrl: 'txme://app/payment-status',
         };
     } catch (error: any) {
         throw new ApiError(
@@ -339,7 +360,6 @@ const createPayout = async (amount: number, stripeAccountId: string) => {
     );
 };
 
-
 const createAppointmentPaymentIntent = async (
     appointmentId: string,
     userEmail: string
@@ -357,11 +377,17 @@ const createAppointmentPaymentIntent = async (
         }
 
         if (!provider.isStripeConnected || !provider.stripeAccountId) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, "Provider has not connected their Stripe account yet. Payment cannot be processed.");
+            throw new ApiError(
+                StatusCodes.BAD_REQUEST,
+                "Provider has not connected their Stripe account yet. Payment cannot be processed."
+            );
         }
 
         if (appointment.status !== 'awaiting_payment') {
-            throw new ApiError(StatusCodes.BAD_REQUEST, `Payment not allowed for appointment in ${appointment.status} status`);
+            throw new ApiError(
+                StatusCodes.BAD_REQUEST,
+                `Payment not allowed for appointment in ${appointment.status} status`
+            );
         }
 
         if (!appointment.totalCost || appointment.totalCost <= 0) {
@@ -385,11 +411,15 @@ const createAppointmentPaymentIntent = async (
 
         const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams);
 
-        const successUrl = config.stripe.paymentSuccess || "https://txme.app/payment-success";
+        const successUrl =
+            config.stripe.paymentSuccess ||
+            "https://txme.app/payment-success";
+
         const customerId = await getOrCreateStripeCustomer(userEmail);
 
         let checkoutSessionParams: Stripe.Checkout.SessionCreateParams = {
-            payment_method_types: ['card'],
+            // Removed payment_method_types: ['card']
+            // Stripe will now use eligible payment methods
             mode: 'payment',
             customer: customerId,
             line_items: [
@@ -413,7 +443,9 @@ const createAppointmentPaymentIntent = async (
             cancel_url: `${successUrl}?canceled=true`,
         };
 
-        const checkoutSession = await stripe.checkout.sessions.create(checkoutSessionParams);
+        const checkoutSession = await stripe.checkout.sessions.create(
+            checkoutSessionParams
+        );
 
         return {
             clientSecret: paymentIntent.client_secret as string,
@@ -423,6 +455,7 @@ const createAppointmentPaymentIntent = async (
         };
     } catch (error: any) {
         if (error instanceof ApiError) throw error;
+
         throw new ApiError(
             StatusCodes.INTERNAL_SERVER_ERROR,
             `Stripe payment creation failed: ${error.message}`
