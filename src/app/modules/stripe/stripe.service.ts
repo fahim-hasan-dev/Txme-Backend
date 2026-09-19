@@ -238,14 +238,59 @@ const verifyTopUpPayment = async (
     }
 };
 
+const getStripeCountryCode = (countryName?: string): string => {
+    if (!countryName) return 'NL';
+    const trimmed = countryName.trim();
+    if (!trimmed) return 'NL';
+    if (trimmed.length === 2) return trimmed.toUpperCase();
+
+    const upper = trimmed.toUpperCase();
+    const countryMap: Record<string, string> = {
+        'NETHERLANDS': 'NL',
+        'THE NETHERLANDS': 'NL',
+        'HOLLAND': 'NL',
+        'NEDERLAND': 'NL',
+        'IRELAND': 'IE',
+        'GERMANY': 'DE',
+        'DEUTSCHLAND': 'DE',
+        'FRANCE': 'FR',
+        'BELGIUM': 'BE',
+        'SPAIN': 'ES',
+        'ITALY': 'IT',
+        'PORTUGAL': 'PT',
+        'AUSTRIA': 'AT',
+        'SWITZERLAND': 'CH',
+        'UNITED KINGDOM': 'GB',
+        'GREAT BRITAIN': 'GB',
+        'UK': 'GB',
+        'UNITED STATES': 'US',
+        'USA': 'US',
+        'CANADA': 'CA',
+        'AUSTRALIA': 'AU',
+    };
+
+    return countryMap[upper] || 'NL';
+};
+
 const createExpressAccount = async (userId: string, email: string) => {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(StatusCodes.NOT_FOUND, "User not found");
 
+    const targetCountry = getStripeCountryCode(user.countryOfResidence);
+
     if (user.stripeAccountId) {
         try {
-            await stripe.accounts.retrieve(user.stripeAccountId);
-            return user.stripeAccountId;
+            const existingAccount = await stripe.accounts.retrieve(user.stripeAccountId);
+            
+            // If onboarding is incomplete and country does not match user's current target country, reset to re-create
+            if (!existingAccount.details_submitted && existingAccount.country !== targetCountry) {
+                console.log(`[StripeService] Saved stripeAccountId ${user.stripeAccountId} has country ${existingAccount.country} but target is ${targetCountry}. Clearing and re-creating.`);
+                user.stripeAccountId = undefined;
+                user.isStripeConnected = false;
+                await user.save();
+            } else {
+                return user.stripeAccountId;
+            }
         } catch (error: any) {
             // If the account does not exist or belongs to another platform (not connected), clear it and create a new one
             if (error.raw?.type === 'invalid_request_error' || error.statusCode === 400 || error.message?.includes('not connected') || error.message?.includes('does not exist')) {
@@ -300,12 +345,15 @@ const createExpressAccount = async (userId: string, email: string) => {
     if (user.residentialAddress?.address) {
         individual.address = {
             line1: user.residentialAddress.address,
-            // You can add city, state, postal_code here if you have separate fields for them
+            city: user.residentialAddress.city || undefined,
+            postal_code: user.residentialAddress.postCode || undefined,
+            country: targetCountry,
         };
     }
 
     const account = await stripe.accounts.create({
         type: 'express',
+        country: targetCountry,
         email: email,
         capabilities: {
             card_payments: { requested: true },
