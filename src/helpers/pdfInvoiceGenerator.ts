@@ -119,7 +119,7 @@ export const buildProfessionalInvoicePDF = async (payload: IInvoicePDFPayload, r
     doc.fillColor(darkGrayTextColor).fontSize(8.5)
         .text(`Email: ${payload.billedFrom?.email || 'support@txme.app'}`, pageMargin + 12, cardY + 34)
         .text(`Role: ${payload.billedFrom?.role || 'Service Platform'}`, pageMargin + 12, cardY + 46)
-        .text('Web: https://txme.app', pageMargin + 12, cardY + 58);
+        .text('Web: https://txme.nl', pageMargin + 12, cardY + 58);
 
     // Right Card (ISSUED TO)
     const rightCardX = pageMargin + cardWidth + 14;
@@ -198,7 +198,7 @@ export const buildProfessionalInvoicePDF = async (payload: IInvoicePDFPayload, r
     doc.moveTo(pageMargin, footerY - 10).lineTo(pageWidth - pageMargin, footerY - 10).strokeColor(borderColor).lineWidth(1).stroke();
 
     doc.fillColor(lightGrayTextColor).fontSize(8)
-        .text('Thank you for choosing Txme! Support: support@txme.app | System-generated receipt.', pageMargin, footerY, { align: 'center', width: contentWidth });
+        .text('Thank you for choosing Txme! Support: Developer@Txme.nl | System-generated receipt.', pageMargin, footerY, { align: 'center', width: contentWidth });
 
     doc.end();
     return doc;
