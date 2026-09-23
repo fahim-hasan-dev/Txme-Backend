@@ -153,7 +153,7 @@ const userSchema = new Schema<IUser>(
     stripeAccountId: { type: String, required: false },
     isStripeConnected: { type: Boolean, default: false },
     fcmToken: { type: String, required: false },
-    complyCubeClientId: { type: String, required: false },
+
     isIdentityVerified: { type: Boolean, default: false },
     diditSessionId: { type: String, required: false },
     isPromoted: { type: Boolean, default: false },

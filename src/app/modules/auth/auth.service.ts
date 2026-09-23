@@ -15,21 +15,7 @@ import { emailTemplate } from "../../../shared/emailTemplate";
 import { Wallet } from "../wallet/wallet.model";
 import { delCache } from "../../../helpers/redisHelper";
 import { addEmailJob } from "../../queues/email.queue";
-
-
-const checkUserStatus = (status?: string) => {
-  const statusMessages: Record<string, string> = {
-    'rejected': 'Your account has been rejected. Please contact support for more information.',
-    'suspended': 'Your account has been suspended. Please contact support.',
-    'blocked': 'Your account has been blocked. Please contact support.',
-    'deleted': 'Your account has been deleted.'
-  };
-
-  if (status && statusMessages[status]) {
-    throw new ApiError(StatusCodes.FORBIDDEN, statusMessages[status]);
-  }
-};
-
+import { checkUserStatus } from "../../../helpers/checkUserStatus";
 // Send OTP for email verification
 const sendEmailOtp = async (data: { email: string; role: USER_ROLES }) => {
   const email = data.email?.toLowerCase().trim();

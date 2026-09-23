@@ -10,8 +10,8 @@ import { NotificationService } from "../notification/notification.service";
 import { JwtPayload } from "jsonwebtoken";
 import QueryBuilder from "../../../helpers/QueryBuilder";
 import { delCache } from "../../../helpers/redisHelper";
-
-
+import { handleAppointmentCompletion, sendStatusNotification } from "../../../helpers/appointmentHelper";
+import { formatTime } from "../../../util/formatTime";
 export const createAppointment = async (customerId: string, data: any) => {
   const { provider, date, startTime, endTime, service, paymentMethod, note } = data;
 
@@ -255,91 +255,6 @@ export const updateAppointmentStatus = async (
   return appointment;
 };
 
-/**
- * Handle complex logic for completing an appointment
- */
-async function handleAppointmentCompletion(appointment: any) {
-  const provider = await User.findById(appointment.provider);
-  if (appointment.actualStartTime && appointment.actualEndTime) {
-    const start = new Date(appointment.actualStartTime);
-    const end = new Date(appointment.actualEndTime);
-
-    const durationMs = end.getTime() - start.getTime();
-    const hours = durationMs / (1000 * 60 * 60);
-    appointment.totalWorkedTime = parseFloat(hours.toFixed(2));
-
-    if (provider?.providerProfile?.hourlyRate) {
-      appointment.totalCost = parseFloat((hours * provider.providerProfile.hourlyRate).toFixed(2));
-    }
-  }
-}
-
-/**
- * Centered notification logic
- */
-async function sendStatusNotification(appointment: any, status: string, isCustomer: boolean) {
-  const messages: Record<string, { title: string; message: string; receiver: "customer" | "provider" }> = {
-    accepted: {
-      title: "Appointment Accepted",
-      message: `Your appointment for ${appointment.service} has been accepted.`,
-      receiver: "customer"
-    },
-    rejected: {
-      title: "Appointment Rejected",
-      message: `Your appointment for ${appointment.service} was rejected. Reason: ${appointment.reason || 'N/A'}`,
-      receiver: "customer"
-    },
-    in_progress: {
-      title: "Service Started",
-      message: `The provider has started the service for your appointment.`,
-      receiver: "customer"
-    },
-    work_completed: {
-      title: "Service Completed",
-      message: `The service is complete. Total Time: ${appointment.totalWorkedTime} hrs, Total Cost: ${appointment.totalCost}. Please proceed to payment.`,
-      receiver: "customer"
-    },
-    cancelled: {
-      title: "Appointment Cancelled",
-      message: `The appointment for ${appointment.service} has been cancelled. Reason: ${appointment.reason || 'N/A'}`,
-      receiver: isCustomer ? "provider" : "customer"
-    },
-    cashPayment: {
-      title: "Payment Update: Cash",
-      message: `The customer has opted to pay via cash. Please confirm once you receive the payment.`,
-      receiver: "provider"
-    },
-    cashReceived: {
-      title: "Payment Confirmed",
-      message: `The provider has confirmed your cash payment. Your service is now ready for review.`,
-      receiver: "customer"
-    },
-    review_pending: {
-      title: "Payment Processed",
-      message: `Payment for appointment ${appointment._id} has been successfully processed.`,
-      receiver: "customer"
-    }
-  };
-
-  const config = messages[status];
-  if (config) {
-    const receiverId = config.receiver === "customer" ? appointment.customer : appointment.provider;
-    console.log(`[AppointmentService] Triggering status notification: ${status}. Receiver: ${receiverId}`);
-    try {
-      await NotificationService.insertNotification({
-        title: config.title,
-        message: config.message,
-        receiver: receiverId,
-        referenceId: appointment._id,
-        screen: "APPOINTMENT",
-        type: "USER",
-      });
-      console.log(`[AppointmentService] Status notification inserted successfully`);
-    } catch (error) {
-      console.error(`[AppointmentService] Failed to insert status notification:`, error);
-    }
-  }
-}
 
 export const getAppointmentById = async (appointmentId: string, user: JwtPayload) => {
   const appointment = await Appointment.findById(appointmentId)
@@ -521,10 +436,6 @@ const getCurrentAppointment = async (user: JwtPayload) => {
   return result;
 };
 
-// Helper function to format time to "HH:MM" format
-function formatTime(time: Date): string {
-  return `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`;
-}
 
 export const AppointmentService = {
   createAppointment,

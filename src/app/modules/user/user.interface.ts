@@ -80,7 +80,7 @@ export interface IUser extends Document {
   stripeAccountId?: string;
   isStripeConnected?: boolean;
   fcmToken?: string;
-  complyCubeClientId?: string;
+
   isIdentityVerified?: boolean;
   diditSessionId?: string;
   isPromoted?: boolean;

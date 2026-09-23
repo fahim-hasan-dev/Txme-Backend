@@ -63,12 +63,7 @@ if (!moduleName) {
     createModule(moduleName);
 }
 
-/**
- * Updates the central router file by adding a new module route import and entry.
- *
- * @param folderName - The name of the folder/module (in lowercase or kebab-case).
- * @param camelCaseName - The camelCase name of the module (used for route import/export).
- */
+// Updates router file with new module import and entry
 function updateRouterFile(folderName: string, camelCaseName: string): void {
     const routerPath = path.join(__dirname, 'app/routes', 'index.ts');
     const routeImport = `import { ${camelCaseName}Routes } from '../app/modules/${folderName}/${folderName}.route';`;

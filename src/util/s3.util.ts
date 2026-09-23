@@ -13,13 +13,7 @@ const s3Client = new S3Client({
     },
 });
 
-/**
- * Upload a file to S3
- * @param filePath Local path of the file
- * @param fileName Desired name in S3
- * @param mimeType Mime type of the file
- * @returns S3 URL
- */
+// Uploads file to S3 and returns the public URL
 export const uploadToS3 = async (
     filePath: string,
     fileName: string,
@@ -55,10 +49,7 @@ export const uploadToS3 = async (
     }
 };
 
-/**
- * Delete a file from S3
- * @param key S3 Key (file name/path)
- */
+// Deletes a file from S3 using its key
 export const deleteFromS3 = async (key: string): Promise<void> => {
     try {
         const command = new DeleteObjectCommand({

@@ -214,9 +214,7 @@ const getmyProfile = async (user: JwtPayload): Promise<any> => {
   return responseData;
 };
 
-/**
- * Helper to calculate user statistics
- */
+// Calculates statistics for user profile
 async function getUserStats(user: any) {
   const userId = user._id;
   const role = user.role;

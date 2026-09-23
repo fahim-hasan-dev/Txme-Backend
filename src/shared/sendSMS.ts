@@ -47,7 +47,7 @@ const sendSMS = async (to: string, message: string) => {
   } catch (error: any) {
     console.error("❌ AWS SNS SMS Error:", error.message || error);
 
-    // AWS SNS error codes are different from Twilio
+    // AWS SNS error codes are different from other providers
     if (error.name === 'InvalidParameterException' && error.message.includes('PhoneNumber')) {
       throw new ApiError(StatusCodes.BAD_REQUEST, 'Invalid phone number format');
     }

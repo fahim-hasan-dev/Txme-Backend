@@ -41,9 +41,7 @@ try {
     console.warn(`⚠️ [Redis] Client initialization error: ${error.message}`);
 }
 
-/**
- * Fetch cached data from Redis. Returns null if key missing or Redis offline.
- */
+// Fetches cached data or returns null
 export async function getCache<T>(key: string): Promise<T | null> {
     if (!redisClient || !isRedisConnected) return null;
     try {
@@ -56,9 +54,7 @@ export async function getCache<T>(key: string): Promise<T | null> {
     }
 }
 
-/**
- * Set cache key with optional TTL (Time To Live in seconds).
- */
+// Sets cache with optional TTL
 export async function setCache(key: string, value: any, ttlSeconds?: number): Promise<void> {
     if (!redisClient || !isRedisConnected) return;
     try {
@@ -73,9 +69,7 @@ export async function setCache(key: string, value: any, ttlSeconds?: number): Pr
     }
 }
 
-/**
- * Delete one or more specific cache keys.
- */
+// Deletes specified cache keys
 export async function delCache(keys: string | string[]): Promise<void> {
     if (!redisClient || !isRedisConnected) return;
     try {
@@ -88,10 +82,7 @@ export async function delCache(keys: string | string[]): Promise<void> {
     }
 }
 
-/**
- * Safely delete keys matching a pattern using SCAN (non-blocking).
- * Example pattern: "cache:services:*" or "cache:user:profile:*"
- */
+// Safely deletes keys matching a pattern via SCAN
 export async function delCachePattern(pattern: string): Promise<void> {
     if (!redisClient || !isRedisConnected) return;
     try {

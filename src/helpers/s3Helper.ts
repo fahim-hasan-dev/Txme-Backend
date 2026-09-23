@@ -1,14 +1,7 @@
 import fs from 'fs';
 import { uploadToS3 } from '../util/s3.util';
 
-/**
- * Uploads a local file to S3 and then deletes it from local storage.
- * @param localPath - The absolute path to the local file.
- * @param folderName - The folder/prefix in S3 (e.g., 'image', 'media').
- * @param fileName - The original filename or a generated one.
- * @param mimeType - The mimetype of the file.
- * @returns The public S3 URL.
- */
+// Uploads file to S3 and removes local copy
 export const uploadFileToS3 = async (
     localPath: string,
     folderName: string,

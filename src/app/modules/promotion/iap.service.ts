@@ -6,15 +6,31 @@ const verifyApplePurchase = async (receiptData: string) => {
     // 1. Check for JWS (Starts with eyJ)
     if (receiptData.startsWith("eyJ")) {
         try {
-            // Decoding the 2nd part of the JWS token (payload)
-            const payload = JSON.parse(Buffer.from(receiptData.split('.')[1], 'base64url').toString('utf8'));
+            const parts = receiptData.split('.');
+            if (parts.length !== 3) throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid JWS format");
+
+            // Extract the header to get the x5c certificate chain
+            const header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+            if (!header.x5c || header.x5c.length === 0) {
+                throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid JWS header, missing x5c chain");
+            }
+
+            // Extract the leaf certificate (first cert in the chain)
+            const certString = `-----BEGIN CERTIFICATE-----\n${header.x5c[0].match(/.{1,64}/g)?.join('\n')}\n-----END CERTIFICATE-----`;
+
+            // Verify the JWT signature securely using the certificate
+            // Note: For full production security, the certificate chain (x5c) should be verified against Apple's Root CA.
+            // Consider using @apple/app-store-server-library for complete StoreKit 2 verification.
+            const jwt = require('jsonwebtoken');
+            const payload = jwt.verify(receiptData, certString, { algorithms: ['ES256'] }) as any;
+
             return {
                 transactionId: payload.transactionId,
                 productId: payload.productId,
                 purchaseDate: new Date(payload.purchaseDate)
             };
-        } catch (error) {
-            throw new ApiError(StatusCodes.BAD_REQUEST, "Invalid JWS token format");
+        } catch (error: any) {
+            throw new ApiError(StatusCodes.BAD_REQUEST, `Invalid or unauthorized JWS token: ${error.message}`);
         }
     }
 

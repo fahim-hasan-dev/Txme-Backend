@@ -30,7 +30,7 @@
 
 **Txme Backend** (also known as Save & Date / Txme Exchange) is an enterprise-grade RESTful API and real-time backend platform built using **Node.js, Express (v5), TypeScript, and MongoDB (Mongoose)**. 
 
-The platform connects **Customers** seeking specialized services with **Service Providers** offering hourly or date-based appointments. It incorporates multi-channel verification (Email, SMS, Biometrics), Automated Identity Verification (Didit & ComplyCube KYC), a Digital Wallet engine with Stripe payment gateway integration, real-time Socket.io chat, dynamic service promotions, and PDF invoice generation.
+The platform connects **Customers** seeking specialized services with **Service Providers** offering hourly or date-based appointments. It incorporates multi-channel verification (Email, SMS, Biometrics), Automated Identity Verification (Didit &  KYC), a Digital Wallet engine with Stripe payment gateway integration, real-time Socket.io chat, dynamic service promotions, and PDF invoice generation.
 
 ---
 
@@ -69,14 +69,14 @@ The platform connects **Customers** seeking specialized services with **Service 
 ## 🔥 Key Features
 
 ### 1. 🔐 Authentication & Identity Management
-- **Multi-Factor OTP Verification**: Email and SMS OTP verification via AWS SES, Nodemailer, and Twilio.
+- **Multi-Factor OTP Verification**: Email and SMS OTP verification via AWS SES, Nodemailer, and AWS SNS.
 - **Biometric Authentication**: Secure JWT-based biometric enrollment and quick login.
 - **Account Recovery & Phone Updates**: Dedicated OTP workflows for password reset and phone number changes.
 - **Automated Cleanup**: Daily background cron job purging unverified inactive user accounts.
 
 ### 2. 🆔 Identity Verification (KYC)
 - **Didit KYC Integration**: Session creation and automated webhook handlers for seamless ID document verification.
-- **ComplyCube Compliance**: Automated identity validation against fraud and compliance databases.
+- ** Compliance**: Automated identity validation against fraud and compliance databases.
 
 ### 3. 💼 Service Provider Ecosystem
 - **Rich Profiles**: Dynamic attributes including hourly rates, skills, working hours, working days, certifications, and languages spoken.
@@ -96,7 +96,7 @@ The platform connects **Customers** seeking specialized services with **Service 
 
 ### 6. 💬 Real-Time Chat & Media Sharing
 - **Socket.io Integration**: Multi-room chat infrastructure supporting direct messages and conversation threads.
-- **Media Attachments**: File storage support via Cloudinary and local disk storage processors.
+- **Media Attachments**: File storage support via local disk storage and local disk storage processors.
 
 ### 7. 🔔 Push & In-App Notifications
 - **Firebase Cloud Messaging (FCM)**: Push notification dispatch for mobile devices.
@@ -115,9 +115,9 @@ The platform connects **Customers** seeking specialized services with **Service 
 | **Authentication** | JSON Web Tokens (jsonwebtoken), BcryptJS, RSA | Token-based security and password hashing |
 | **Payments** | Stripe API (v18.1) | Payment Intents, Connect accounts, and Webhooks |
 | **Real-Time Communication** | Socket.io (v4.8) | WebSocket server for chat & live events |
-| **Cloud Storage** | AWS S3 (`@aws-sdk/client-s3`), Cloudinary | Media and document asset management |
-| **KYC / Verification** | Didit Protocol (`@didit/api`), ComplyCube | Identity and compliance verification |
-| **Email & SMS** | AWS SES, Nodemailer, Twilio | Transactional messages and OTP dispatches |
+| **Cloud Storage** | AWS S3 (`@aws-sdk/client-s3`), local disk storage | Media and document asset management |
+| **KYC / Verification** | Didit Protocol (`@didit/api`),  | Identity and compliance verification |
+| **Email & SMS** | AWS SES, Nodemailer, AWS SNS | Transactional messages and OTP dispatches |
 | **Push Notifications** | Firebase Admin SDK (v13.6) | Mobile device FCM push notifications |
 | **PDF Generation** | PDFKit (v0.17) | Automated invoice PDF generation |
 | **Logging & Security** | Winston, Morgan, Express-Rate-Limit, Request-IP | Audit logging, rate limiting, and client IP tracking |
@@ -158,7 +158,7 @@ Txme-Backend/
             ├── auth/                 # OTP, Login, Refresh, Biometrics, Password reset
             ├── chat/                 # Chat rooms & conversation management
             ├── invoice/              # Invoice management & PDF downloads
-            ├── kyc/                  # Didit & ComplyCube KYC handlers
+            ├── kyc/                  # Didit &  KYC handlers
             ├── message/              # Chat messaging & media attachments
             ├── notification/         # Notification management & FCM tokens
             ├── promotion/            # Featured provider promotion packages
@@ -289,7 +289,7 @@ WEBHOOK_SECRET=whsec_...
 SUCCESS_URL=https://txme-exchange.com/payment-success
 
 
-# KYC Verification (Didit & ComplyCube)
+# KYC Verification (Didit & )
 DIDIT_API_KEY=your_didit_api_key
 DIDIT_WEBHOOK_SECRET=your_didit_webhook_secret
 DIDIT_WORKFLOW_ID=your_workflow_id

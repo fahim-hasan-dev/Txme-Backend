@@ -12,16 +12,8 @@ import { checkCardPaymentSetting, checkWalletSetting } from '../../../helpers/ch
 import { WalletTransaction } from '../transaction/transaction.model';
 import { IWalletTransaction } from '../transaction/transaction.interface';
 import { delCache, getCache, setCache } from '../../../helpers/redisHelper';
-
-
-const getOrCreateStripeCustomer = async (email: string): Promise<string> => {
-    const existing = await stripe.customers.list({ email, limit: 1 });
-    if (existing.data.length > 0) {
-        return existing.data[0].id;
-    }
-    const customer = await stripe.customers.create({ email });
-    return customer.id;
-};
+import { getOrCreateStripeCustomer } from '../../../helpers/stripeHelper';
+import { getStripeCountryCode } from '../../../util/getStripeCountryCode';
 
 const createTopUpPaymentIntent = async (
     userId: string,
@@ -238,39 +230,6 @@ const verifyTopUpPayment = async (
     }
 };
 
-const getStripeCountryCode = (countryName?: string): string => {
-    if (!countryName) return 'NL';
-    const trimmed = countryName.trim();
-    if (!trimmed) return 'NL';
-    if (trimmed.length === 2) return trimmed.toUpperCase();
-
-    const upper = trimmed.toUpperCase();
-    const countryMap: Record<string, string> = {
-        'NETHERLANDS': 'NL',
-        'THE NETHERLANDS': 'NL',
-        'HOLLAND': 'NL',
-        'NEDERLAND': 'NL',
-        'IRELAND': 'IE',
-        'GERMANY': 'DE',
-        'DEUTSCHLAND': 'DE',
-        'FRANCE': 'FR',
-        'BELGIUM': 'BE',
-        'SPAIN': 'ES',
-        'ITALY': 'IT',
-        'PORTUGAL': 'PT',
-        'AUSTRIA': 'AT',
-        'SWITZERLAND': 'CH',
-        'UNITED KINGDOM': 'GB',
-        'GREAT BRITAIN': 'GB',
-        'UK': 'GB',
-        'UNITED STATES': 'US',
-        'USA': 'US',
-        'CANADA': 'CA',
-        'AUSTRALIA': 'AU',
-    };
-
-    return countryMap[upper] || 'NL';
-};
 
 const createExpressAccount = async (userId: string, email: string) => {
     const user = await User.findById(userId);
@@ -308,13 +267,10 @@ const createExpressAccount = async (userId: string, email: string) => {
     const individual: Stripe.AccountCreateParams.Individual = {};
 
     if (user.email) individual.email = user.email;
-    // Commeted out phone pre-filling because Stripe can be very strict with regional formats (e.g., +880 for BD)
-    // and this causes the entire account creation to fail. User can enter it during onboarding.
-    /*
-    if (user.phone) {
-        individual.phone = user.phone.startsWith('+') ? user.phone : `+${user.phone}`;
-    }
-    */
+    // Skip phone pre-fill to avoid Stripe regional format errors. User enters it during onboarding.
+    // if (user.phone) {
+    //     individual.phone = user.phone.startsWith('+') ? user.phone : `+${user.phone}`;
+    // }
 
     if (user.fullName) {
         const nameParts = user.fullName.trim().split(/\s+/);
