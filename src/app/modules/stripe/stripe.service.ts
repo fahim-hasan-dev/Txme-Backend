@@ -88,8 +88,8 @@ const createTopUpPaymentIntent = async (
                 },
             },
 
-            success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${successUrl}?canceled=true`,
+            success_url: `${successUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${successUrl}/fail?canceled=true`,
         });
 
         return {
@@ -240,7 +240,7 @@ const createExpressAccount = async (userId: string, email: string) => {
     if (user.stripeAccountId) {
         try {
             const existingAccount = await stripe.accounts.retrieve(user.stripeAccountId);
-            
+
             // If onboarding is incomplete and country does not match user's current target country, reset to re-create
             if (!existingAccount.details_submitted && existingAccount.country !== targetCountry) {
                 console.log(`[StripeService] Saved stripeAccountId ${user.stripeAccountId} has country ${existingAccount.country} but target is ${targetCountry}. Clearing and re-creating.`);
@@ -443,8 +443,8 @@ const createAppointmentPaymentIntent = async (
                 type: 'appointment_payment',
                 totalCost: appointment.totalCost.toString(),
             },
-            success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${successUrl}?canceled=true`,
+            success_url: `${successUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${successUrl}/fail?canceled=true`,
         };
 
         const checkoutSession = await stripe.checkout.sessions.create(
@@ -659,7 +659,7 @@ const getAccountStatus = async (userId: string) => {
             user.isStripeConnected = false;
             await user.save();
             await delCache(`cache:user:profile:${userId}`);
-            
+
             const result = {
                 isConnected: false,
                 detailsSubmitted: false,

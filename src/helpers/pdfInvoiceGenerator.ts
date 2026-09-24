@@ -117,7 +117,7 @@ export const buildProfessionalInvoicePDF = async (payload: IInvoicePDFPayload, r
     doc.fillColor(blackTextColor).fontSize(8).text('ISSUED BY', pageMargin + 12, cardY + 10);
     doc.fillColor(blackTextColor).fontSize(10).text(payload.billedFrom?.name || 'Txme Platform Services', pageMargin + 12, cardY + 21);
     doc.fillColor(darkGrayTextColor).fontSize(8.5)
-        .text(`Email: ${payload.billedFrom?.email || 'support@txme.app'}`, pageMargin + 12, cardY + 34)
+        .text(`Email: ${payload.billedFrom?.email || 'Developer@Txme.nl'}`, pageMargin + 12, cardY + 34)
         .text(`Role: ${payload.billedFrom?.role || 'Service Platform'}`, pageMargin + 12, cardY + 46)
         .text('Web: https://txme.nl', pageMargin + 12, cardY + 58);
 

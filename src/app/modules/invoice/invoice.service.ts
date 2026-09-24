@@ -75,7 +75,7 @@ const getInvoiceForTransaction = async (transactionId: string, userId: string): 
         netAmount: invoiceNet,
         billedFrom: {
             name: transaction.from?.fullName || 'Txme Platform System',
-            email: transaction.from?.email || 'system@txme.app',
+            email: transaction.from?.email || 'system@txme.nl',
             role: transaction.from?.role || 'SYSTEM'
         },
         billedTo: {
@@ -122,7 +122,7 @@ const getInvoiceForAppointment = async (appointmentId: string, userId: string): 
         amount: appointment.totalCost || appointment.price || 0,
         billedFrom: {
             name: appointment.provider?.fullName || 'Txme Provider Service',
-            email: appointment.provider?.email || 'provider@txme.app',
+            email: appointment.provider?.email || 'provider@txme.nl',
             role: 'Verified Service Provider'
         },
         billedTo: {

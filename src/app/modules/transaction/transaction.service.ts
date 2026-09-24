@@ -43,7 +43,7 @@ const generateInvoicePDF = async (reference: string) => {
         amount: transaction.amount,
         billedFrom: {
             name: (transaction.from as any)?.fullName || 'Txme System Platform',
-            email: (transaction.from as any)?.email || 'system@txme.app',
+            email: (transaction.from as any)?.email || 'system@txme.nl',
             role: (transaction.from as any)?.role || 'SYSTEM'
         },
         billedTo: {
